@@ -6,12 +6,11 @@ Duo two-factor authentication for Splunk
 Run the install script as follows:
 
 ```
-$ ./install.sh -i <your_ikey> -s <your_skey> -a <your_akey> -h <your_host> -d <splunk_location>
+$ ./install.sh -i <your_ikey> -s <your_skey> -h <your_host> -d <splunk_location>
 ```
 
 - The -d option specifies where Splunk is installed (not required, defaults to /opt/splunk)
 - You can get your ikey, skey, and host from the administrative panel at admin.duosecurity.com
-- See http://www.duosecurity.com/docs/duoweb#generate_an_application_key for instructions on how to generate your akey
 
 
 ##Manual Installation Instructions:
