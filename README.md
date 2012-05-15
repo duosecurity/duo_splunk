@@ -10,7 +10,7 @@ $ ./install.sh -i <your_ikey> -s <your_skey> -h <your_host> -d <splunk_location>
 ```
 
 - The -d option specifies where Splunk is installed (not required, defaults to /opt/splunk)
-- You can get your ikey, skey, and host from the administrative panel at admin.duosecurity.com
+- You can get your ikey, skey, and host from the administrative panel at http://admin.duosecurity.com. The integration type should be Web SDK.
 
 
 ##Manual Installation Instructions:
