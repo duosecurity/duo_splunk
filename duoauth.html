@@ -1,0 +1,29 @@
+<%inherit file="//layout/base.html" />
+<%namespace name="lib" file="//lib.html" import="*" />
+
+
+<%def name="css()">
+    <%lib:stylesheet_tags files="${['/static/css/login.css']}" />
+    <%lib:script_tags files="${['/static/js/contrib/jquery.cookie.js']}" />
+</%def>
+
+<script src="${make_url('/static/js/contrib/duo.web.bundled.min.js')}"></script>
+
+<script>
+    Duo.init({
+        'host': '${duo_host}',
+        'post_action':'${make_url("/account/duologin")}',
+        'sig_request': '  ${sig_request}',
+    });
+</script>
+
+<style>
+    #splunkLogo {
+        margin-left: 160px;
+    }
+</style>
+
+<div id="layout" class="">
+    <div id="splunkLogo"></div>
+    <iframe id="duo_iframe" width="500" height="800" frameborder="0" allowtransparency="true" style="background: transparent;"></iframe>
+</div>
