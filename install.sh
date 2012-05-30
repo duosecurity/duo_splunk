@@ -46,7 +46,24 @@ if [ ! -d $SPLUNK/lib/python2.7/site-packages/ ]; then
     exit 1
 fi
 
-# patch
+# make sure it looks like Splunk has not been patched before
+grep "DUO SECURITY MODIFICATIONS" $SPLUNK/lib/python2.7/site-packages/splunk/appserver/mrsparkle/controllers/account.py
+if [ $? == 0 ]; then
+    echo 'It looks like Splunk has already been patched.'
+    echo 'Please contact support@duosecurity.com if you are having trouble'
+    echo 'exiting'
+    exit 1
+fi
+
+# test patch
+patch --dry-run $SPLUNK/lib/python2.7/site-packages/splunk/appserver/mrsparkle/controllers/account.py account.py.diff
+if [ $? != 0 ]; then
+    echo 'Patching Splunk will not work, please contact support@duosecurity.com'
+    echo 'exiting'
+    exit 1
+fi
+
+# actually patch if the dry run was successful
 patch $SPLUNK/lib/python2.7/site-packages/splunk/appserver/mrsparkle/controllers/account.py account.py.diff
 if [ $? != 0 ]; then
     echo 'Patching Splunk failed, please contact support@duosecurity.com'
