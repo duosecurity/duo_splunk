@@ -47,16 +47,36 @@ if [ ! -d $SPLUNK/lib/python2.7/site-packages/ ]; then
 fi
 
 # make sure it looks like Splunk has not been patched before
-grep "DUO SECURITY MODIFICATIONS" $SPLUNK/lib/python2.7/site-packages/splunk/appserver/mrsparkle/controllers/account.py
+grep "DUO SECURITY MODIFICATIONS" $SPLUNK/lib/python2.7/site-packages/splunk/appserver/mrsparkle/controllers/account.py > /dev/null
 if [ $? == 0 ]; then
-    echo 'It looks like Splunk has already been patched.'
+    echo 'It looks like Splunk has already been patched to integrate with Duo.'
     echo 'Please contact support@duosecurity.com if you are having trouble'
     echo 'exiting'
     exit 1
 fi
 
+# Figure out what version to patch
+PATCH=""
+grep "VERSION=4" $SPLUNK/etc/splunk.version > /dev/null
+if [ $? == 0 ]; then
+	echo "Using patch for version 4..."
+	PATCH="account.py.4.diff"
+fi
+
+grep "VERSION=5" $SPLUNK/etc/splunk.version > /dev/null
+if [ $? == 0 ]; then
+	echo "Using patch for version 5..."
+	PATCH="account.py.5.diff"
+fi
+
+if [ "$PATCH" == "" ]; then
+    echo 'Patching this version of Splunk will not work, please contact support@duosecurity.com'
+    echo 'exiting'
+    exit 1
+fi
+
 # test patch
-patch --dry-run $SPLUNK/lib/python2.7/site-packages/splunk/appserver/mrsparkle/controllers/account.py account.py.diff
+patch --dry-run $SPLUNK/lib/python2.7/site-packages/splunk/appserver/mrsparkle/controllers/account.py $PATCH
 if [ $? != 0 ]; then
     echo 'Patching Splunk will not work, please contact support@duosecurity.com'
     echo 'exiting'
@@ -64,7 +84,7 @@ if [ $? != 0 ]; then
 fi
 
 # actually patch if the dry run was successful
-patch $SPLUNK/lib/python2.7/site-packages/splunk/appserver/mrsparkle/controllers/account.py account.py.diff
+patch $SPLUNK/lib/python2.7/site-packages/splunk/appserver/mrsparkle/controllers/account.py $PATCH 
 if [ $? != 0 ]; then
     echo 'Patching Splunk failed, please contact support@duosecurity.com'
     echo 'exiting'

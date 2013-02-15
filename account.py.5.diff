@@ -1,0 +1,68 @@
+*** patched_account.py	2013-02-15 14:26:18.000000000 -0500
+--- account.py	2013-02-15 14:34:01.000000000 -0500
+***************
+*** 7,12 ****
+--- 7,21 ----
+  
+  logger = logging.getLogger('splunk.appserver.controllers.account')
+  
++ ### START DUO SECURITY MODIFICATIONS ####
++ ### See http://www.duosecurity.com/docs/splunk for more details ###
++ import duo_web
++ DUO_IKEY = 'YOUR_DUO_IKEY'
++ DUO_SKEY = 'YOUR_DUO_SKEY'
++ DUO_AKEY = 'YOUR_DUO_AKEY'
++ DUO_HOST = 'YOUR_DUO_HOST'
++ ### END DUO SECURITY MODIFICATIONS ####
++ 
+  class AccountController(BaseController):
+      """
+      Handle logging in and logging out
+***************
+*** 224,230 ****
+  
+          # Start with a clean and minty fresh session
+          cherrypy.session.regenerate()
+!         cherrypy.session['sessionKey'] = sessionKey
+          # TODO: get rest of user info
+          cherrypy.session['user'] = {
+              'name': username,
+--- 233,239 ----
+  
+          # Start with a clean and minty fresh session
+          cherrypy.session.regenerate()
+!         cherrypy.session['duo_stashed_sessionKey'] = sessionKey
+          # TODO: get rest of user info
+          cherrypy.session['user'] = {
+              'name': username,
+***************
+*** 232,237 ****
+--- 241,268 ----
+              'id': -1
+          }
+  
++         sigreq = duo_web.sign_request(DUO_IKEY, DUO_SKEY, DUO_AKEY, username)
++         templateArgs['sig_request'] = sigreq
++         templateArgs['duo_host'] = DUO_HOST
++         return self.render_template('account/duoauth.html', templateArgs)
++ 
++     @expose_page(must_login=False, methods=['POST'], verify_session=False)
++     @lock_session
++     @set_cache_level('never')
++     def duologin(self, sig_response, return_to=None, **kwargs):
++         username = duo_web.verify_response(DUO_IKEY, DUO_SKEY, DUO_AKEY, sig_response)
++         if not username:
++             cherrypy.session.delete()
++             return self.redirect_to_url('/account/login')
++ 
++         # mark user as logged in
++         sessionKey = cherrypy.session['duo_stashed_sessionKey']
++         cherrypy.session['sessionKey'] = sessionKey
++         ### END DUO SECURITY MODIFICATIONS ####
++ 
++         ua = cherrypy.request.headers.get('user-agent', 'unknown')
++         ip = cherrypy.request.remote.ip
++ 
+          # Log user login
+          logger.info('user=%s action=login status=success session=%s ' \
+                      'reason=user-initiated useragent="%s" clientip=%s'
