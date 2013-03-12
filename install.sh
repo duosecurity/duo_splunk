@@ -120,38 +120,32 @@ fi
 
 # configure account.py
 echo "Configuring Duo API keys..."
-sed -i'' -e "s/YOUR_DUO_IKEY/$IKEY/g" $SPLUNK/lib/python2.7/site-packages/splunk/appserver/mrsparkle/controllers/account.py
+sed -i -e "s/YOUR_DUO_IKEY/$IKEY/g" $SPLUNK/lib/python2.7/site-packages/splunk/appserver/mrsparkle/controllers/account.py
 if [ $? != 0 ]; then
     echo 'Configuring duo_splunk failed, please contact support@duosecurity.com'
     echo 'exiting'
     exit 1
 fi
 
-sed -i'' -e "s/YOUR_DUO_SKEY/$SKEY/g" $SPLUNK/lib/python2.7/site-packages/splunk/appserver/mrsparkle/controllers/account.py
+sed -i -e "s/YOUR_DUO_SKEY/$SKEY/g" $SPLUNK/lib/python2.7/site-packages/splunk/appserver/mrsparkle/controllers/account.py
 if [ $? != 0 ]; then
     echo 'Configuring duo_splunk failed, please contact support@duosecurity.com'
     echo 'exiting'
     exit 1
 fi
 
-sed -i'' -e "s/YOUR_DUO_AKEY/$AKEY/g" $SPLUNK/lib/python2.7/site-packages/splunk/appserver/mrsparkle/controllers/account.py
+sed -i -e "s/YOUR_DUO_AKEY/$AKEY/g" $SPLUNK/lib/python2.7/site-packages/splunk/appserver/mrsparkle/controllers/account.py
 if [ $? != 0 ]; then
     echo 'Configuring duo_splunk failed, please contact support@duosecurity.com'
     echo 'exiting'
     exit 1
 fi
 
-sed -i'' -e "s/YOUR_DUO_HOST/$HOST/g" $SPLUNK/lib/python2.7/site-packages/splunk/appserver/mrsparkle/controllers/account.py
+sed -i -e "s/YOUR_DUO_HOST/$HOST/g" $SPLUNK/lib/python2.7/site-packages/splunk/appserver/mrsparkle/controllers/account.py
 if [ $? != 0 ]; then
     echo 'Configuring duo_splunk failed, please contact support@duosecurity.com'
     echo 'exiting'
     exit 1
-fi
-
-# delete the backup file if all the sed commands were successful
-BACKUP=$SPLUNK/lib/python2.7/site-packages/splunk/appserver/mrsparkle/controllers/account.py-e
-if [ -e $BACKUP ]; then
-    rm -f $BACKUP
 fi
 
 # restart splunk web
