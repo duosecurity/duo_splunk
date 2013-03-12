@@ -17,9 +17,9 @@ do
     esac
 done
 
-if [ -z $IKEY ]; then echo "Missing -i (Duo integration key)"; exit 1; fi
-if [ -z $SKEY ]; then echo "Missing -s (Duo secret key)"; exit 1; fi
-if [ -z $HOST ]; then echo "Missing -h (Duo API hostname)"; exit 1; fi
+if [ -z "$IKEY" ]; then echo "Missing -i (Duo integration key)"; exit 1; fi
+if [ -z "$SKEY" ]; then echo "Missing -s (Duo secret key)"; exit 1; fi
+if [ -z "$HOST" ]; then echo "Missing -h (Duo API hostname)"; exit 1; fi
 
 echo "Installing Duo integration to $SPLUNK..."
 
@@ -48,7 +48,7 @@ fi
 
 # make sure it looks like Splunk has not been patched before
 grep "DUO SECURITY MODIFICATIONS" $SPLUNK/lib/python2.7/site-packages/splunk/appserver/mrsparkle/controllers/account.py > /dev/null
-if [ $? == 0 ]; then
+if [ $? = 0 ]; then
     echo 'It looks like Splunk has already been patched to integrate with Duo.'
     echo 'Please contact support@duosecurity.com if you are having trouble'
     echo 'exiting'
@@ -57,18 +57,18 @@ fi
 
 # Figure out what version to patch
 grep "VERSION=4" $SPLUNK/etc/splunk.version > /dev/null
-if [ $? == 0 ]; then
+if [ $? = 0 ]; then
 	echo "Using patch for version 4..."
 	PATCH="account.py.4.diff"
 fi
 
 grep "VERSION=5" $SPLUNK/etc/splunk.version > /dev/null
-if [ $? == 0 ]; then
+if [ $? = 0 ]; then
 	echo "Using patch for version 5..."
 	PATCH="account.py.5.diff"
 fi
 
-if [ -z $PATCH ]; then
+if [ -z "$PATCH" ]; then
     echo 'Patching this version of Splunk will not work, please contact support@duosecurity.com'
     echo 'exiting'
     exit 1
