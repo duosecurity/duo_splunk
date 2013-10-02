@@ -68,6 +68,12 @@ if [ $? = 0 ]; then
 	PATCH="account.py.5.diff"
 fi
 
+grep "VERSION=6" $SPLUNK/etc/splunk.version > /dev/null
+if [ $? = 0 ]; then
+	echo "Using patch for version 6..."
+	PATCH="account.py.6.diff"
+fi
+
 if [ -z "$PATCH" ]; then
     echo 'Patching this version of Splunk will not work, please contact support@duosecurity.com'
     echo 'exiting'
