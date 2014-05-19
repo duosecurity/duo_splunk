@@ -1,5 +1,6 @@
 #duo_splunk
 Duo two-factor authentication for Splunk
+
 Integration documentation: <http://www.duosecurity.com/docs/splunk>
  
 ##Automatic Installation Instructions:
