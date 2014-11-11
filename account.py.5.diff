@@ -1,22 +1,28 @@
---- account_old_6.py	2013-02-15 14:33:07.000000000 -0500
-+++ account.py	2013-02-15 16:02:56.000000000 -0500
-@@ -7,6 +7,15 @@
+--- .old_account.py	2014-10-30 16:02:26.000000000 -0400
++++ account.py	2014-10-30 16:01:45.000000000 -0400
+@@ -9,6 +9,21 @@
  
  logger = logging.getLogger('splunk.appserver.controllers.account')
  
-+### START DUO SECURITY MODIFICATIONS ####
++### START DUO SECURITY MODIFICATIONS VER 2 ####
 +### See http://www.duosecurity.com/docs/splunk for more details ###
++import duo_client
 +import duo_web
++from ssl import SSLError
++from socket import error
++
 +DUO_IKEY = 'YOUR_DUO_IKEY'
 +DUO_SKEY = 'YOUR_DUO_SKEY'
 +DUO_AKEY = 'YOUR_DUO_AKEY'
 +DUO_HOST = 'YOUR_DUO_HOST'
++DUO_FAILOPEN = YOUR_DUO_FAILOPEN
++DUO_TIMEOUT = YOUR_DUO_TIMEOUT
 +### END DUO SECURITY MODIFICATIONS ####
 +
  class AccountController(BaseController):
      """
      Handle logging in and logging out
-@@ -224,7 +233,7 @@
+@@ -242,7 +257,7 @@
  
          # Start with a clean and minty fresh session
          cherrypy.session.regenerate()
@@ -25,10 +31,39 @@
          # TODO: get rest of user info
          cherrypy.session['user'] = {
              'name': username,
-@@ -232,6 +241,28 @@
+@@ -250,6 +265,60 @@
              'id': -1
          }
  
++        ### START DUO SECURITY MODIFICATIONS VER 2 ####
++        # Issue a preauth call to Duo, to ensure that Duo is available
++        duo_auth = duo_client.Auth(ikey=DUO_IKEY,skey=DUO_SKEY,host=DUO_HOST)
++        duo_auth.timeout = DUO_TIMEOUT
++        try:
++            resp = duo_auth.preauth(username=username, ipaddr=cherrypy.request.remote.ip)
++            if resp['result'] == 'allow':
++                # User doesn't need to 2fa, bypass in this case
++                return self.finish_login(username, return_to)
++            # All other cases fall through to redirect to duo's iframe
++        except SSLError as e:
++            logger.info("Duo error on preauth: {0}".format(str(e)))
++            if DUO_FAILOPEN:
++                # Fail open
++                logger.info("Duo fail open for user {0}".format(username))
++                return self.finish_login(username, return_to)
++        except RuntimeError as e:
++            logger.info("Duo error on preauth: {0}".format(str(e)))
++            logger.info("Duo /preauth call failed: {0}".format(str(e)))
++            if hasattr(e, 'status') and DUO_FAILOPEN and 500 <= e.status < 600:
++                # Fail open
++                logger.info("Duo fail open for user {0}".format(username))
++                return self.finish_login(username, return_to)
++        except error as e:
++            # Socket errors
++            logger.info("Duo error on preauth: {0}".format(str(e)))
++            if DUO_FAILOPEN:
++                logger.info("Duo fail open for user {0}".format(username))
++                return self.finish_login(username, return_to)
 +        sigreq = duo_web.sign_request(DUO_IKEY, DUO_SKEY, DUO_AKEY, username)
 +        templateArgs['sig_request'] = sigreq
 +        templateArgs['duo_host'] = DUO_HOST
@@ -40,16 +75,19 @@
 +    def duologin(self, sig_response, return_to=None, **kwargs):
 +        username = duo_web.verify_response(DUO_IKEY, DUO_SKEY, DUO_AKEY, sig_response)
 +        if not username:
-+            cherrypy.session.delete()
-+            return self.redirect_to_url('/account/login')
++           cherrypy.session.delete()
++           return self.redirect_to_url('/account/login')
++        return self.finish_login(username, return_to)
 +
++    def finish_login(self, username, return_to):
++        """ Complete the successful login processs. """
 +        # mark user as logged in
 +        sessionKey = cherrypy.session['duo_stashed_sessionKey']
 +        cherrypy.session['sessionKey'] = sessionKey
-+        ### END DUO SECURITY MODIFICATIONS ####
 +
 +        ua = cherrypy.request.headers.get('user-agent', 'unknown')
 +        ip = cherrypy.request.remote.ip
++        ### END DUO SECURITY MODIFICATIONS ####
 +
          # Log user login
          logger.info('user=%s action=login status=success session=%s ' \

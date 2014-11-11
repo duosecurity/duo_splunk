@@ -54,7 +54,7 @@
 +        except RuntimeError as e:
 +            logger.info("Duo error on preauth: {0}".format(str(e)))
 +            logger.info("Duo /preauth call failed: {0}".format(str(e)))
-+            if DUO_FAILOPEN and 500 <= e.status < 600:
++            if hasattr(e, 'status') and DUO_FAILOPEN and 500 <= e.status < 600:
 +                # Fail open
 +                logger.info("Duo fail open for user {0}".format(username))
 +                return self.finish_login(username, return_to)

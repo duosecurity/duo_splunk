@@ -126,11 +126,6 @@ if grep -q 'VERSION=4' "$SPLUNK/etc/splunk.version" ; then
 fi
 
 if grep -q 'VERSION=5' "$SPLUNK/etc/splunk.version" ; then
-    if [ $UPGRADE -eq 1 ] ; then
-        echo 'Duo is already installed, and no upgrade exists for splunk version 5.'
-        echo 'Exiting.'
-        exit 0
-    fi
 	echo "Using patch for version 5..."
 	PATCH="account.py.5.diff"
 fi
@@ -163,10 +158,10 @@ ACCOUNT_PY_BACKUP_FILE="$OLD_ACCOUNT_PY_FILE"
 
 if [ -f "$OLD_ACCOUNT_PY_FILE" ]; then
     # Keep a copy of the patched account.py file
-    cp "$ACCOUNT_PY_FILE" "$OLD_ACCOUNT_PY_FILE_PATCHED"
+    cp -f "$ACCOUNT_PY_FILE" "$OLD_ACCOUNT_PY_FILE_PATCHED"
 
     # Update the variables to handle version 2 update case.
-    COPY_ACCOUNT_PY_FILE="cp $OLD_ACCOUNT_PY_FILE $ACCOUNT_PY_FILE"
+    COPY_ACCOUNT_PY_FILE="cp -f $OLD_ACCOUNT_PY_FILE $ACCOUNT_PY_FILE"
     PATCH_TEST_ACCOUNT_PY_FILE="$OLD_ACCOUNT_PY_FILE"
     ACCOUNT_PY_BACKUP_FILE="$OLD_ACCOUNT_PY_FILE_PATCHED"
 fi
@@ -179,7 +174,7 @@ if ! patch --dry-run "$PATCH_TEST_ACCOUNT_PY_FILE" "$PATCH" > /dev/null; then
 fi
 
 # Make a backup and actually patch if the dry run was successful
-cp "$ACCOUNT_PY_FILE" "$ACCOUNT_PY_BACKUP_FILE"
+cp -f "$ACCOUNT_PY_FILE" "$ACCOUNT_PY_BACKUP_FILE"
 
 # Copy back the unmodified account.py if needed, and proceed with install.
 if ! ${COPY_ACCOUNT_PY_FILE}; then
