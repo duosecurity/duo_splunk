@@ -135,6 +135,12 @@ if grep -q 'VERSION=6' "$SPLUNK/etc/splunk.version" ; then
 	PATCH="account.py.6.diff"
 fi
 
+if grep -q 'VERSION=6.3' "$SPLUNK/etc/splunk.version" ; then
+	echo "Using patch for version 6.3..."
+	PATCH="account.py.63.diff"
+	PATCH2="decorators.py.63.diff"
+fi
+
 if [ -z "$PATCH" ]; then
     echo 'Patching this version of Splunk will not work, please contact support@duosecurity.com'
     echo 'exiting'
@@ -189,6 +195,56 @@ if ! patch "$ACCOUNT_PY_FILE" "$PATCH"; then
     exit 1
 fi
 
+if [ "$PATCH2" ]; then
+    # Running decorators python file
+    DECORATORS_PY_FILE="$SPLUNK/lib/python2.7/site-packages/splunk/appserver/mrsparkle/lib/decorators.py"
+    # Splunk's original file
+    OLD_DECORATORS_PY_FILE="$SPLUNK/lib/python2.7/site-packages/splunk/appserver/mrsparkle/lib/.old_decorators.py"
+    # Duo's version 1 patched file
+    OLD_DECORATORS_PY_FILE_PATCHED="$SPLUNK/lib/python2.7/site-packages/splunk/appserver/mrsparkle/lib/.old_decorators.py.duo_patched"
+
+    # Store a command to either restore the original decorators.py file, or do nothing, depending on
+    # whether Duo has patched this splunk install already or not.
+    COPY_DECORATORS_PY_FILE=""
+    # Remember which file we want to test the patch against
+    PATCH_TEST_DECORATORS_PY_FILE="$DECORATORS_PY_FILE"
+    # Remember which file to restore from in case of failure
+    DECORATORS_PY_BACKUP_FILE="$OLD_DECORATORS_PY_FILE"
+
+    if [ -f "$OLD_DECORATORS_PY_FILE" ]; then
+        # Keep a copy of the patched decorators.py file
+        cp -f "$DECORATORS_PY_FILE" "$OLD_DECORATORS_PY_FILE_PATCHED"
+
+        # Update the variables to handle version 2 update case.
+        COPY_DECORATORS_PY_FILE="cp -f $OLD_DECORATORS_PY_FILE $DECORATORS_PY_FILE"
+        PATCH_TEST_DECORATORS_PY_FILE="$OLD_DECORATORS_PY_FILE"
+        DECORATORS_PY_BACKUP_FILE="$OLD_DECORATORS_PY_FILE_PATCHED"
+    fi
+
+    # test patch against splunk's unmodified file.
+    if ! patch --dry-run "$PATCH_TEST_DECORATORS_PY_FILE" "$PATCH2" > /dev/null; then
+        echo 'Patching Splunk will not work, please contact support@duosecurity.com'
+        echo 'exiting'
+        exit 1
+    fi
+
+    # Make a backup and actually patch if the dry run was successful
+    cp -f "$DECORATORS_PY_FILE" "$DECORATORS_PY_BACKUP_FILE"
+
+    # Copy back the unmodified decorators.py if needed, and proceed with install.
+    if ! ${COPY_DECORATORS_PY_FILE}; then
+        echo 'Failed to copy the unmodified decorators.py for patching.  Please contact support@duosecurity.com'
+        exit 1
+    fi
+
+    if ! patch "$DECORATORS_PY_FILE" "$PATCH2"; then
+        mv "$DECORATORS_PY_BACKUP_FILE" "$DECORATORS_PY_FILE"
+        echo 'Patching Splunk failed, please contact support@duosecurity.com'
+        echo 'exiting'
+        exit 1
+    fi
+fi
+
 echo "Copying in Duo client python..."
 cp -r ./duo_client_python/duo_client "$SPLUNK/lib/python2.7/site-packages/"
 
@@ -215,38 +271,43 @@ if ! cp duo_web.py "$SPLUNK/lib/python2.7/site-packages/"; then
     exit 1
 fi
 
+CRED_PY_FILE=$ACCOUNT_PY_FILE
+if [ "$PATCH2" ]; then
+    CRED_PY_FILE=$DECORATORS_PY_FILE
+fi
+
 # configure account.py
-if ! sed -i -e "s/YOUR_DUO_IKEY/$IKEY/g" "$ACCOUNT_PY_FILE"; then
+if ! sed -i -e "s/YOUR_DUO_IKEY/$IKEY/g" "$CRED_PY_FILE"; then
     echo 'Configuring duo_splunk failed, please contact support@duosecurity.com'
     echo 'exiting'
     exit 1
 fi
 
-if ! sed -i -e "s/YOUR_DUO_SKEY/$SKEY/g" "$ACCOUNT_PY_FILE"; then
+if ! sed -i -e "s/YOUR_DUO_SKEY/$SKEY/g" "$CRED_PY_FILE"; then
     echo 'Configuring duo_splunk failed, please contact support@duosecurity.com'
     echo 'exiting'
     exit 1
 fi
 
-if ! sed -i -e "s/YOUR_DUO_AKEY/$AKEY/g" "$ACCOUNT_PY_FILE"; then
+if ! sed -i -e "s/YOUR_DUO_AKEY/$AKEY/g" "$CRED_PY_FILE"; then
     echo 'Configuring duo_splunk failed, please contact support@duosecurity.com'
     echo 'exiting'
     exit 1
 fi
 
-if ! sed -i -e "s/YOUR_DUO_HOST/$HOST/g" "$ACCOUNT_PY_FILE"; then
+if ! sed -i -e "s/YOUR_DUO_HOST/$HOST/g" "$CRED_PY_FILE"; then
     echo 'Configuring duo_splunk failed, please contact support@duosecurity.com'
     echo 'exiting'
     exit 1
 fi
 
-if ! sed -i -e "s/YOUR_DUO_TIMEOUT/$TIMEOUT/g" "$ACCOUNT_PY_FILE"; then
+if ! sed -i -e "s/YOUR_DUO_TIMEOUT/$TIMEOUT/g" "$CRED_PY_FILE"; then
     echo 'Configuring duo_splunk failed, please contact support@duosecurity.com'
     echo 'exiting'
     exit 1
 fi
 
-if ! sed -i -e "s/YOUR_DUO_FAILOPEN/$FAILOPEN/g" "$SPLUNK/lib/python2.7/site-packages/splunk/appserver/mrsparkle/controllers/account.py"; then
+if ! sed -i -e "s/YOUR_DUO_FAILOPEN/$FAILOPEN/g" "$CRED_PY_FILE"; then
     echo 'Configuring duo_splunk failed, please contact support@duosecurity.com'
     echo 'exiting'
     exit 1
