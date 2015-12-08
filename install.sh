@@ -254,8 +254,8 @@ fi
 
 
 
-# restart splunk web
-echo 'Restarting splunkweb...'
-$SPLUNK/bin/splunk restart splunkweb
+# restart Splunk
+echo 'Restarting Splunk...'
+$SPLUNK/bin/splunk restart
 
 echo "Done installing duo_splunk!"
