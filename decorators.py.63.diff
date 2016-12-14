@@ -1,0 +1,98 @@
+--- ./.old_decorators.py	2015-11-10 16:17:08.000000000 -0600
++++ ./decorators.py	2015-11-11 10:45:26.000000000 -0600
+@@ -24,6 +24,21 @@
+ SPLUNKWEB_TRUSTED_IP_CFG = 'trustedIP'
+ SPLUNKWEB_SSO_MODE_CFG = 'SSOMode'
+ 
++### START DUO SECURITY MODIFICATIONS VER 2 ####
++### See http://www.duosecurity.com/docs/splunk for more details ###
++import duo_client
++import duo_web
++from ssl import SSLError
++from socket import error
++
++DUO_IKEY = 'YOUR_DUO_IKEY'
++DUO_SKEY = 'YOUR_DUO_SKEY'
++DUO_AKEY = 'YOUR_DUO_AKEY'
++DUO_HOST = 'YOUR_DUO_HOST'
++DUO_FAILOPEN = YOUR_DUO_FAILOPEN
++DUO_TIMEOUT = YOUR_DUO_TIMEOUT 
++### END DUO SECURITY MODIFICATIONS ####
++
+ def chain_decorators(fn, *declist):
+     """
+     Called from a decorator to chain other decorators together
+@@ -120,12 +135,72 @@
+ 
+     def dec(fn):
+         if must_login:
+-            return chain_decorators(fn, check, sso_ip_validation(verify_sso), sso_check(), require_login(respect_permalinks), ExceptionHandler(), cherrypy.expose)(fn)
++            return chain_decorators(fn, check, sso_ip_validation(verify_sso), sso_check(), require_login(respect_permalinks), require_duo(), ExceptionHandler(), cherrypy.expose)(fn)
+         else:
+             return chain_decorators(fn, check, sso_ip_validation(verify_sso), ExceptionHandler(), cherrypy.expose)(fn)
+             
+     return dec
+ 
++#### START DUO SECURITY MODIFICATIONS VER 2 ####
++def require_duo():
++    """
++    Duo Auth Decorator:
++    Author: Ryan Holeman @ Atlassian
++    
++    This decorator, when included in Splunk's expose_page decorator chain,
++    provides Duo authentication for Splunk versions 6.1, 6.2 and 6.3.  This
++    approach utilizes cherrypy session data to verify if a user has successfuly
++    passed Duo authentication along with the duologin function in account.py.
++    
++    Note: This decorator approach may work for Splunk versions as early as 5.0
++    but has yet to be tested on earlier versions.  
++    """
++    @decorator
++    def check_duo(fn, self, *a, **kw):
++        duo_passed = cherrypy.session.get("duo_passed",None)
++        if not duo_passed:
++            ## Issue a preauth call to Duo, to ensure that Duo is available
++            username = cherrypy.request.headers.get('REMOTE-USER')
++            duo_auth = duo_client.Auth(ikey=DUO_IKEY,skey=DUO_SKEY,host=DUO_HOST)
++            duo_auth.timeout = DUO_TIMEOUT
++            try:
++                resp = duo_auth.preauth(username=username, ipaddr=cherrypy.request.remote.ip)
++                if resp['result'] == 'allow':
++                    # User doesn't need to 2fa, bypass in this case
++                    #return self.finish_login(username, return_to)
++                    return fn(self, *a, **kw)
++                # All other cases fall through to redirect to duo's iframe
++            except SSLError as e:
++                logger.info("Duo error on preauth: {0}".format(str(e)))
++                if DUO_FAILOPEN:
++                    # Fail open
++                    logger.info("Duo fail open for user {0}".format(username))
++                    #return self.finish_login(username, return_to)
++                    return fn(self, *a, **kw)
++            except RuntimeError as e:
++                logger.info("Duo error on preauth: {0}".format(str(e)))
++                logger.info("Duo /preauth call failed: {0}".format(str(e)))
++                if hasattr(e, 'status') and DUO_FAILOPEN and 500 <= e.status < 600:
++                    # Fail open
++                    logger.info("Duo fail open for user {0}".format(username))
++                    #return self.finish_login(username, return_to)
++                    return fn(self, *a, **kw)
++            except error as e:
++                # Socket errors
++                logger.info("Duo error on preauth: {0}".format(str(e)))
++                if DUO_FAILOPEN:
++                    logger.info("Duo fail open for user {0}".format(username))
++                    #return self.finish_login(username, return_to)
++                    return fn(self, *a, **kw)
++            sigreq = duo_web.sign_request(DUO_IKEY, DUO_SKEY, DUO_AKEY, username)
++            templateArgs = {}
++            templateArgs["return_to"] = '/'
++            templateArgs['sig_request'] = sigreq
++            templateArgs['duo_host'] = DUO_HOST
++            return self.render_template('account/duoauth.html', templateArgs)
++        return fn(self, *a, **kw)
++    return check_duo
++#### END DUO SECURITY MODIFICATIONS VER 2 ####
+     
+ def clean_session():
+     '''Safely clean the session. This is used primarily by the SSO mechanism.'''

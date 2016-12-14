@@ -24,6 +24,12 @@ if [ ! -e $SPLUNK/lib/python2.7/site-packages/splunk/appserver/mrsparkle/control
     echo "$SPLUNK_ERROR"
     exit 1
 fi
+if grep -q 'VERSION=6.3' "$SPLUNK/etc/splunk.version" ; then
+    if [ ! -e $SPLUNK/lib/python2.7/site-packages/splunk/appserver/mrsparkle/lib/decorators.py ]; then
+        echo "$SPLUNK_ERROR"
+        exit 1
+    fi
+fi
 if [ ! -d $SPLUNK/share/splunk/search_mrsparkle/templates/account/ ]; then
     echo "$SPLUNK_ERROR"
     exit 1
@@ -43,10 +49,24 @@ if [ $? != 0 ]; then
 	exit 1
 fi
 
+if grep -q 'VERSION=6.3' "$SPLUNK/etc/splunk.version" ; then
+    mv -f $SPLUNK/lib/python2.7/site-packages/splunk/appserver/mrsparkle/lib/.old_decorators.py $SPLUNK/lib/python2.7/site-packages/splunk/appserver/mrsparkle/lib/decorators.py
+    if [ $? != 0 ]; then
+        echo "Backup file no longer exists, cannot uninstall the Duo integration."
+        exit 1
+    fi
+fi
+
 # Try to remove cache if it exists
 if [ -e $SPLUNK/lib/python2.7/site-packages/splunk/appserver/mrsparkle/controllers/account.pyo ]; then
 	echo "Deleting web app cache..."
 	rm -f $SPLUNK/lib/python2.7/site-packages/splunk/appserver/mrsparkle/controllers/account.pyo
+fi
+
+# Try to remove cache if it exists
+if [ -e $SPLUNK/lib/python2.7/site-packages/splunk/appserver/mrsparkle/lib/decorators.pyo ]; then
+	echo "Deleting web app cache..."
+	rm -f $SPLUNK/lib/python2.7/site-packages/splunk/appserver/mrsparkle/lib/decorators.pyo
 fi
 
 # And remove other splunk files.

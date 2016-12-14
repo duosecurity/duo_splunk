@@ -1,0 +1,23 @@
+--- account.py.orig	2015-11-10 13:26:00.000000000 -0600
++++ account.py	2015-11-10 13:30:08.000000000 -0600
+@@ -24,6 +24,20 @@
+     # The LRUDict is not thread safe; acquire a lock before operating with it
+     credential_lock = threading.Lock()
+ 
++    ### START DUO SECURITY MODIFICATIONS VER 2 ####
++    @expose_page(must_login=False, methods=['POST'], verify_session=False)
++    @lock_session
++    @set_cache_level('never')
++    def duologin(self, sig_response, return_to=None, **kwargs):
++        username = duo_web.verify_response(decorators.DUO_IKEY, 
++                decorators.DUO_SKEY, decorators.DUO_AKEY, sig_response)
++        if not username:
++           cherrypy.session.delete()
++           return self.redirect_to_url('/account/login')
++        cherrypy.session["duo_passed"] = username
++        return self.redirect_to_url('/')
++    ### END DUO SECURITY MODIFICATIONS VER 2 ####
++
+     @expose_page(methods='GET')
+     def index(self):
+         return self.redirect_to_url('/')
